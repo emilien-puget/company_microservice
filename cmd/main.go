@@ -36,8 +36,6 @@ func main() {
 	ctx, cl := Init()
 	defer cl(nil)
 
-	// validate := validator.New()
-
 	e := echo.New()
 	defer e.Shutdown(context.Background())
 	p := prometheus.NewPrometheus(service, nil)
