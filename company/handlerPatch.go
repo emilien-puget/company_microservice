@@ -39,20 +39,11 @@ type patchParameters struct {
 }
 
 func (hp HandlerPatch) Handle(c echo.Context) error {
-	p := patchParameters{}
-	err := c.Bind(&p)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
-	}
-
 	ctx := c.Request().Context()
-	err = hp.validate.StructCtx(ctx, p)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
-	}
 
-	if !p.Type.IsValid() {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid company type")
+	p, err := hp.fetchParams(c, ctx)
+	if err != nil {
+		return err
 	}
 
 	ogMongoModel, err := hp.repository.FetchByID(ctx, p.CompanyID)
@@ -84,4 +75,22 @@ func (hp HandlerPatch) Handle(c echo.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (hp HandlerPatch) fetchParams(c echo.Context, ctx context.Context) (patchParameters, error) {
+	p := patchParameters{}
+	err := c.Bind(&p)
+	if err != nil {
+		return patchParameters{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	err = hp.validate.StructCtx(ctx, p)
+	if err != nil {
+		return patchParameters{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	if !p.Type.IsValid() {
+		return patchParameters{}, echo.NewHTTPError(http.StatusBadRequest, "invalid company type")
+	}
+	return p, nil
 }

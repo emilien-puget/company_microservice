@@ -33,16 +33,10 @@ type deleteInput struct {
 }
 
 func (hd HandlerDelete) Handle(c echo.Context) error {
-	p := deleteInput{}
-	err := c.Bind(&p)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
-	}
-
 	ctx := c.Request().Context()
-	err = hd.validate.StructCtx(ctx, p)
+	p, err := hd.fetchParams(c, ctx)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+		return err
 	}
 	_, err = hd.repository.FetchByID(ctx, p.CompanyID)
 	if err != nil {
@@ -56,5 +50,20 @@ func (hd HandlerDelete) Handle(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	_ = c.NoContent(http.StatusNoContent)
 	return nil
+}
+
+func (hd HandlerDelete) fetchParams(c echo.Context, ctx context.Context) (deleteInput, error) {
+	p := deleteInput{}
+	err := c.Bind(&p)
+	if err != nil {
+		return deleteInput{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	err = hd.validate.StructCtx(ctx, p)
+	if err != nil {
+		return deleteInput{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+	return p, nil
 }

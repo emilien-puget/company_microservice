@@ -41,16 +41,10 @@ type getOutput struct {
 }
 
 func (g HandlerGet) Handle(c echo.Context) error {
-	p := getParameters{}
-	err := c.Bind(&p)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
-	}
-
 	ctx := c.Request().Context()
-	err = g.validate.StructCtx(ctx, p)
+	p, err := g.fetchParams(c, ctx)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+		return err
 	}
 	mongoModel, err := g.repository.FetchByID(ctx, p.CompanyID)
 	if err != nil {
@@ -68,4 +62,18 @@ func (g HandlerGet) Handle(c echo.Context) error {
 		Type:        mongoModel.Type,
 	})
 	return nil
+}
+
+func (g HandlerGet) fetchParams(c echo.Context, ctx context.Context) (getParameters, error) {
+	p := getParameters{}
+	err := c.Bind(&p)
+	if err != nil {
+		return getParameters{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	err = g.validate.StructCtx(ctx, p)
+	if err != nil {
+		return getParameters{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+	return p, nil
 }

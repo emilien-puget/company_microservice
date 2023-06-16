@@ -46,19 +46,11 @@ type postOutput struct {
 }
 
 func (hp HandlerPost) Handle(c echo.Context) error {
-	companyInput := postInput{}
-	err := c.Bind(&companyInput)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
-	}
 	ctx := c.Request().Context()
 
-	err = hp.validate.StructCtx(ctx, companyInput)
+	companyInput, err := hp.fetchParam(c, ctx)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
-	}
-	if !companyInput.Type.IsValid() {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid company type")
+		return err
 	}
 
 	existingName, err := hp.repository.FetchByName(ctx, companyInput.Name)
@@ -94,4 +86,21 @@ func (hp HandlerPost) Handle(c echo.Context) error {
 		Type:        companyInput.Type,
 	})
 	return nil
+}
+
+func (hp HandlerPost) fetchParam(c echo.Context, ctx context.Context) (postInput, error) {
+	companyInput := postInput{}
+	err := c.Bind(&companyInput)
+	if err != nil {
+		return postInput{}, echo.NewHTTPError(http.StatusBadRequest, "invalid parameters")
+	}
+
+	err = hp.validate.StructCtx(ctx, companyInput)
+	if err != nil {
+		return postInput{}, echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if !companyInput.Type.IsValid() {
+		return postInput{}, echo.NewHTTPError(http.StatusBadRequest, "invalid company type")
+	}
+	return companyInput, nil
 }
