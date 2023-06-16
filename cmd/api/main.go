@@ -12,10 +12,14 @@ import (
 	"syscall"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/emilien-puget/company_microservice/auth"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo-contrib/prometheus"
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/emilien-puget/company_microservice/company"
 	"github.com/emilien-puget/company_microservice/configuration"
 )
 
@@ -40,6 +44,30 @@ func main() {
 	defer e.Shutdown(context.Background())
 	p := prometheus.NewPrometheus(service, nil)
 	p.Use(e)
+
+	handlerGet := company.NewHandlerGet()
+	handlerPost := company.NewHandlerPost()
+	handlerDelete := company.NewHandlerDelete()
+	handlerPatch := company.NewHandlerPatch()
+	handlerLogin := auth.NewHandlerLogin()
+
+	g := e.Group(eCfg.BaseURL)
+
+	g.POST("/login", handlerLogin.Handle)
+	g.GET("/companies/:companyId", handlerGet.Handle)
+
+	restricted := g.Group("")
+	config := echojwt.Config{
+		NewClaimsFunc: func(c echo.Context) jwt.Claims {
+			return new(auth.JwtCustomClaims)
+		},
+		SigningKey: auth.SigningSecretString,
+	}
+	restricted.Use(echojwt.WithConfig(config))
+
+	restricted.POST("/companies", handlerPost.Handle)
+	restricted.DELETE("/companies/:companyId", handlerDelete.Handle)
+	restricted.PATCH("/companies/:companyId", handlerPatch.Handle)
 
 	go func() {
 		err := e.Start(fmt.Sprintf(":%s", eCfg.Port))
