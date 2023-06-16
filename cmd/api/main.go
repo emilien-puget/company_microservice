@@ -13,11 +13,16 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/emilien-puget/company_microservice/auth"
+	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo-contrib/prometheus"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/emilien-puget/company_microservice/company"
 	"github.com/emilien-puget/company_microservice/configuration"
@@ -44,11 +49,27 @@ func main() {
 	defer e.Shutdown(context.Background())
 	p := prometheus.NewPrometheus(service, nil)
 	p.Use(e)
+	e.Use(middleware.Logger())
 
-	handlerGet := company.NewHandlerGet()
-	handlerPost := company.NewHandlerPost()
-	handlerDelete := company.NewHandlerDelete()
-	handlerPatch := company.NewHandlerPatch()
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(eCfg.MongoDB.ConnectionString))
+	if err != nil {
+		cl(fmt.Errorf("mongo connect:%w", err))
+		return
+	}
+
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		cl(fmt.Errorf("mongo ping:%w", err))
+		return
+	}
+
+	repository := company.NewCompanyRepository(client)
+
+	validate := validator.New()
+	handlerGet := company.NewHandlerGet(repository, validate)
+	handlerPost := company.NewHandlerPost(repository, validate)
+	handlerDelete := company.NewHandlerDelete(repository, validate)
+	handlerPatch := company.NewHandlerPatch(repository, validate)
 	handlerLogin := auth.NewHandlerLogin()
 
 	g := e.Group(eCfg.BaseURL)
