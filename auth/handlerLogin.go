@@ -8,8 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type HandlerLogin struct {
-}
+type HandlerLogin struct{}
 
 func NewHandlerLogin() *HandlerLogin {
 	return &HandlerLogin{}
